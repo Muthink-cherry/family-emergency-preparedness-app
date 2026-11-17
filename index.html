@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#7f2f42">
+  <meta name="description" content="家庭防災物資、效期、避難包與整備進度管理">
+  <title>家庭防災準備工具</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <meta name="theme-color" content="#244840">
+</head>
+<body>
+  <div id="loading" class="loading-screen">
+    <img class="loading-mark" src="./icon.svg" alt="">
+    <p>載入家庭防災資料…</p>
+  </div>
+
+  <div id="app" class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-mark" src="./icon.svg" alt="">
+        <div><strong>家庭防災</strong><span>整備總覽</span></div>
+      </div>
+      <nav id="side-nav" class="side-nav" aria-label="主要導覽"></nav>
+      <div class="side-summary">
+        <small>整備截止</small>
+        <strong id="side-days">—</strong>
+        <span id="side-deadline">—</span>
+      </div>
+      <button class="btn btn-primary btn-wide" data-action="open-item">＋ 新增物資</button>
+      <div class="sync-card"><span id="sync-dot" class="sync-dot"></span><div><strong id="sync-label">讀取中</strong><small id="sync-detail">正在讀取本機資料</small></div></div>
+      <p class="privacy-note">資料儲存在此瀏覽器，可在設定頁備份。</p>
+    </aside>
+
+    <header class="mobile-header">
+      <div class="brand compact"><img class="brand-mark" src="./icon.svg" alt=""><strong>家庭防災準備工具</strong></div>
+      <div class="mobile-actions"><span id="mobile-sync-dot" class="sync-dot"></span><button class="icon-btn" data-action="open-item" aria-label="新增物資">＋</button></div>
+    </header>
+
+    <main id="main" class="main-content" tabindex="-1"></main>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="手機導覽"></nav>
+  </div>
+
+  <dialog id="onboarding-dialog" class="modal" aria-labelledby="onboarding-title">
+    <form id="onboarding-form">
+      <h1 id="onboarding-title">家庭防災準備工具</h1>
+      <p>先設定準備天數和成員，再為每位成員建立避難包。可以使用暱稱。</p>
+      <div id="onboarding-counts" class="form-grid">
+        <label>成人數<input name="adults" type="number" min="0" max="50" step="1" value="2" required></label>
+        <label>孩童數<input name="children" type="number" min="0" max="50" step="1" value="0" required></label>
+        <label>準備天數<select name="days"><option value="3">3 天</option><option value="7" selected>7 天</option><option value="10">10 天</option><option value="14">14 天</option></select></label>
+      </div>
+      <div id="onboarding-names" class="form-grid" hidden></div>
+      <p id="onboarding-error" role="alert"></p>
+      <div class="modal-actions"><button type="button" id="onboarding-back" class="btn btn-ghost" hidden>上一步</button><button id="onboarding-submit" class="btn btn-primary">下一步</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="item-dialog" class="modal">
+    <form id="item-form" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">物資資料</p><h2 id="item-dialog-title">新增物資</h2></div><button type="button" class="icon-btn" data-close="item-dialog">×</button></div>
+      <input type="hidden" name="id">
+      <div class="form-grid">
+        <label class="span-2">名稱<input name="name" required placeholder="例如：瓶裝飲用水"></label>
+        <label>分類<select name="category" id="item-category"></select></label>
+        <label>優先度<select name="priority"><option>P1</option><option>P2</option><option>P3</option></select></label>
+        <label>可用數量<input name="verified_quantity" type="number" min="0" step="0.01" placeholder="尚未盤點可留白"></label>
+        <label>目標數量<input name="target_quantity" type="number" min="0" step="0.01"></label>
+        <label>單位<input name="unit" placeholder="L、包、個…"></label>
+        <label>使用範圍<select name="scope"><option value="home">居家</option><option value="go_bag">避難包</option><option value="shared">共用</option></select></label>
+        <label>狀態<select name="status"><option value="not_purchased">待購</option><option value="ordered">待到貨</option><option value="verified">已備妥</option><option value="considering">考慮中</option></select></label>
+        <label>放置位置<input name="location" placeholder="例如：儲藏室 A 櫃"></label>
+        <label>最近效期<input name="expires_on" type="date"></label>
+        <label class="span-2">備註<textarea name="note" rows="3" placeholder="規格、用途或盤點提醒"></textarea></label>
+      </div>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-close="item-dialog">取消</button><button class="btn btn-primary" value="save">儲存物資</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="batch-dialog" class="modal">
+    <form id="batch-form" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">批次與效期</p><h2>登錄一批物資</h2></div><button type="button" class="icon-btn" data-close="batch-dialog">×</button></div>
+      <input type="hidden" name="id"><input type="hidden" name="item_id">
+      <div class="form-grid">
+        <label class="span-2">物資<select name="item_select" id="batch-item"></select></label>
+        <label>可用件數<input name="verified_quantity" type="number" min="0" step="0.01" required value="1"></label>
+        <label>每件容量／熱量<input name="package_value" type="number" min="0" step="0.01" placeholder="選填"></label>
+        <label>單位<input name="package_unit" placeholder="L、kcal、個…"></label>
+        <label>效期標示<select name="expiry_precision"><option value="date">完整日期</option><option value="month">只有年月</option><option value="unknown">待登錄</option><option value="none">無效期</option></select></label>
+        <label>效期<input name="expires_on" type="date"></label>
+        <label>放置位置<input name="location" placeholder="例如：廚房上櫃"></label>
+        <label class="span-2">備註<textarea name="note" rows="2"></textarea></label>
+      </div>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-close="batch-dialog">取消</button><button class="btn btn-primary" value="save">儲存批次</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="bag-dialog" class="modal">
+    <form id="bag-form" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">避難包</p><h2 id="bag-dialog-title">更新配包資料</h2></div><button type="button" class="icon-btn" data-close="bag-dialog">×</button></div>
+      <input type="hidden" name="id">
+      <div class="form-grid">
+        <label>使用者姓名<input name="user_name" required maxlength="60"></label>
+        <label>成員類型<select name="member_type"><option value="adult">成人</option><option value="child">孩童</option></select></label>
+        <label>放置位置<input name="location" placeholder="例如：玄關櫃"></label>
+        <label>包重（kg）<input name="packed_weight_kg" type="number" min="0" step="0.1"></label>
+        <label>試背日期<input name="walk_test_on" type="date"></label>
+        <label>實際背負人<select name="carrier_member_id" id="bag-carrier"></select></label>
+        <label class="span-2">備註<textarea name="note" rows="3"></textarea></label>
+      </div>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-close="bag-dialog">取消</button><button class="btn btn-primary" value="save">儲存</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="family-dialog" class="modal" aria-labelledby="family-title">
+    <form id="family-form">
+      <div class="modal-head"><h2 id="family-title">家庭成員設定</h2><button type="button" class="icon-btn" data-close="family-dialog" aria-label="關閉">×</button></div>
+      <div class="form-grid">
+        <label>成人數<input name="adults" type="number" min="0" max="50" step="1" required></label>
+        <label>孩童數<input name="children" type="number" min="0" max="50" step="1" required></label>
+        <label>準備天數<select name="days" id="family-days"></select></label>
+        <label>每人每日飲水（L）<input name="daily" type="number" min="0.1" step="0.1" required></label>
+      </div>
+      <div id="archive-choices"></div><p id="family-error" role="alert"></p>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-close="family-dialog">取消</button><button class="btn btn-primary">儲存設定</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="custom-bag-dialog" class="modal modal-small" aria-labelledby="custom-bag-title">
+    <form id="custom-bag-form">
+      <div class="modal-head"><h2 id="custom-bag-title">新增自訂物品</h2><button type="button" class="icon-btn" data-close="custom-bag-dialog" aria-label="關閉">×</button></div>
+      <input name="id" type="hidden"><input name="bag_id" type="hidden">
+      <div class="form-grid">
+        <label class="span-2">物品名稱<input name="label" required maxlength="100"></label>
+        <label>數量<input name="quantity" type="number" min="0.01" step="0.01" required></label>
+        <label class="span-2">備註<textarea name="notes" maxlength="500"></textarea></label>
+      </div>
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-close="custom-bag-dialog">取消</button><button class="btn btn-primary">儲存物品</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="rotation-dialog" class="modal modal-small">
+    <form id="rotation-form" method="dialog">
+      <div class="modal-head"><h2 id="rotation-dialog-title"></h2><button type="button" class="icon-btn" data-close="rotation-dialog" aria-label="關閉">×</button></div>
+      <p id="rotation-dialog-message"></p>
+      <div class="form-grid">
+        <label class="span-2">處理方式<select name="outcome"><option>已吃完／用完</option><option>已丟棄</option><option>其他</option></select></label>
+        <label class="span-2">原因／備註<textarea name="note" rows="3" maxlength="500"></textarea></label>
+      </div>
+      <div class="modal-actions"><button class="btn btn-ghost" value="cancel">取消</button><button id="rotation-submit" class="btn btn-danger" value="ok">確認</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="modal modal-small">
+    <form method="dialog">
+      <div class="modal-head"><h2 id="confirm-title">請確認</h2><button type="button" class="icon-btn" data-close="confirm-dialog">×</button></div>
+      <p id="confirm-message"></p>
+      <div class="modal-actions"><button class="btn btn-ghost" value="cancel">取消</button><button id="confirm-ok" class="btn btn-danger" value="ok">確認</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input id="import-file" type="file" accept="application/json" hidden>
+  <script src="./storage.js" defer></script>
+  <script src="./catalog.js" defer></script>
+  <script src="./app.js" defer></script>
+  <script src="./pwa.js" defer></script>
+</body>
+</html>
